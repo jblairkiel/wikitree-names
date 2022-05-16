@@ -3,8 +3,8 @@ import 'devextreme/dist/css/dx.dark.css';
 import './App.css';
 import React from 'react';
 import CustomStore from 'devextreme/data/custom_store';
-import Form from 'devextreme-react/form';
 import Button from 'devextreme-react/button'
+import { Slider, Label, Tooltip } from 'devextreme-react/slider';
 import { Popup, Position } from 'devextreme-react/popup';
 import { TextBox  } from 'devextreme-react/text-box';
 import DataGrid, { 
@@ -27,118 +27,65 @@ import DataGrid, {
 class App extends React.Component {
   constructor(props){
     super(props);
-
-    this.popupState = {
+    this.contentReady = this.contentReady.bind(this);
+    this.state = {
+      autoExpandAll: false,
       popupVisible: true,
+      textBoxValue: '',
+      wikitreeLevels: 3
     };
 
-    this.textBoxState = {
-      wikitreeID: 'Kiel-273'
-    };
-    this.wikitreeLevels = 5;
+    this.wikitreeID = '';
+    this.handleTextBoxChange = this.handleTextBoxChange.bind(this);
 
-    this.handleTextBoxChange = function(event) {
-      this.textBoxState({wikitreeID: event.currentTarget.value});
-    };
-    this.gridURL = `http://localhost:3001/GetNames?name=` + this.textBoxState.wikitreeID + '&levels=' + this.wikitreeLevels;
-    this.store = new CustomStore({
+    const nameValue = this.state.textBoxValue;
+    const treeLevels = this.state.wikitreeLevels;
+    this.dataGridStore = new CustomStore({
       key: 'Id',
       load(loadOptions) {
-        return fetch(this.gridURL)
+        return fetch('http://localhost:3001/GetNames?name=' + nameValue + '&levels=' + treeLevels)
           .then((response) => response.json())
           .then((data) => ({
-            data: data 
+            data: [] 
           }))
           .catch(() => { throw new Error('Data Loading Error'); });
-      },
+      }
     });
-
+    //this.gridURL = `http://localhost:3001/GetNames?name=` + this.textBoxState.wikitreeID + '&levels=' + this.wikitreeLevels;
+    this.gridURL = `http://localhost:3001/GetNames`;
+  
     this.dataGrid = React.createRef();
     this.onStateResetClick = this.onStateResetClick.bind(this);
-    this.state = {
-      autoExpandAll: true,
-    };
     this.onAutoExpandAllChanged = this.onAutoExpandAllChanged.bind(this);
+    this.showPopup = this.showPopup.bind(this);
+    this.hidePopup = this.hidePopup.bind(this);
+    this.setSliderValue = this.setSliderValue.bind(this);
   }
 
-  popupTemplate = (button) => {
-    return (
-      <div>
-        <div className="dx-field">
-          <div className="dx-field-label">Wikitree ID</div>
-          <div className="dx-field-value">
-            <TextBox 
-              placeholder="Enter Wikitree ID here ...." 
-              textBoxState={this.textBoxState}
-              onChange={this.handleTextBoxChange}/>
-          </div>
-        </div>
-        <Button
-          width={140}
-          text="Analyze Names"
-          type="default"
-          stylingMode="contained"
-          onClick={this.submitName()}
-        />
-      </div>
-    ); 
-  };
-  
-  
-  submitName = () => {
-   
-    //this.dataGrid.instance.refresh()
-    // this.store = new CustomStore({
-    //   key: 'Id',
-    //   load(loadOptions) {
-    //     return fetch(`http://localhost:3001/GetNames?name=` + this.textBoxState.wikitreeID + '&levels=' + this.wikitreeLevels)
-    //       .then((response) => response.json())
-    //       .then((data) => ({
-    //         data: data 
-    //       }))
-    //       .catch(() => { throw new Error('Data Loading Error'); });
-    //   },
-    // });
-    this.store.load();
-    
-  };
-  
-  onRefreshClick() {
-    window.location.reload();
-  }
-
-  onClick(e) {
-    const buttonText = e.component.option('text');
-    //notify(`The ${capitalize(buttonText)} button was clicked`);
-  }
-
-
-  wikitreeHtmlRenderer(data) {
-    const hrefStr = 'https://www.wikitree.com/wiki/' + data.value
-    return <a href={hrefStr} target='_blank'>{data.value}</a>
-  }
-
-  onStateResetClick() {
-    this.dataGrid.current.instance.state(null);
-  }
   render() {
     return (
       <div id="container">
+        <Button icon="preferences"
+          type="default"
+          text="Done"
+          onClick={this.showPopup} />
         <Popup
-          visible={this.popupState.popupVisible}
-          dragEnabled={true}
-          closeOnOutsideClick={true}
-          showCloseButton={true}
+          visible={this.state.popupVisible}
+          dragEnabled={false}
+          closeOnOutsideClick={false}
+          showCloseButton={false}
           contentRender = {this.popupTemplate}
           showTitle={true}
           title="Wikitree Naming Analysis"
+          popupState={this.popupState}
           container=".dx-viewport"
           width={350}
           height={280} >
             
         </Popup>
         <DataGrid
-          dataSource={this.store}
+          dataSource={this.dataGridStore}
+          onContentReady={this.contentReady}
           showBorders={true}
           allowColumnReordering={true}
           allowColumnResizing={true}
@@ -155,6 +102,7 @@ class App extends React.Component {
             visible={false} />
           <Column
             dataField="FirstName" 
+            groupIndex={0}
             width={'100'} />
           <Column
             dataField="MiddleName" 
@@ -188,7 +136,7 @@ class App extends React.Component {
                 column="FirstName"
                 summaryType="count"
                 displayFormat="Total: {0}"
-                showInGroupFooter={true} />
+                />
               <GroupItem
                 column="MiddleName"
                 summaryType="count"
@@ -205,12 +153,110 @@ class App extends React.Component {
                   displayFormat="Total: {0}"
                   showInGroupFooter={true} />
             </Summary>
-            <SortByGroupSummaryInfo summaryItem="count" />
+            <SortByGroupSummaryInfo summaryItem="count" sortOrder="desc"/>
         </DataGrid> 
       </div>
     );
   }
 
+  handleTextBoxChange(newValue){
+    this.setState({
+      textBoxValue: newValue
+    });
+    // const eventValue = e;
+    // const anotherTarget = e.target;
+    // const eventTarget = eventValue.currentTarget;
+    // const newValue = eventTarget.value;
+    // this.wikitreeID = newValue;
+  };
+
+  popupTemplate = (button) => {
+    return (
+      <div>
+        <div className="dx-field">
+          <div className="dx-field-label">Wikitree ID</div>
+          <div className="dx-field-value">
+            <TextBox 
+              placeholder="Enter Wikitree ID here ...." 
+              textBoxState={this.state.textBoxValue}
+              onValueChange={this.handleTextBoxChange}/>
+          </div>
+        </div>
+        <div className="dx-field">
+            <div className="dx-field-label">Tree Depth</div>
+            <div className="dx-field-value">
+              <Slider min={0} max={15} defaultValue={this.state.wikitreeLevels} step={1} onValueChanged={this.setSliderValue}>
+                <Tooltip enabled={true} />
+              </Slider>
+            </div>
+          </div>
+        <Button
+          width={140}
+          text="Analyze Names"
+          type="default"
+          stylingMode="contained"
+          onClick={this.submitName}
+        />
+      </div>
+    ); 
+  };
+
+  showPopup() {
+    this.setState({
+      popupVisible: true
+    });
+  }
+
+  hidePopup() {
+      this.setState({
+        popupVisible: false
+      });
+  }
+
+  setSliderValue({ value }) {
+    this.setState({ wikitreeLevels: value });
+  }
+  
+  contentReady = (e) => {
+    if (!e.component.getSelectedRowKeys().length) { 
+      //e.component.expandRow(e.component.getKeyByRowIndex(0));   For showing first row
+      //console.log("do nothing") 
+    }
+  }
+  
+  submitName = () => {
+   
+    const nameValue = this.state.textBoxValue;
+    const treeLevels = this.state.wikitreeLevels;
+    this.dataGridStore = new CustomStore({
+      key: 'Id',
+      load(loadOptions) {
+        return fetch('http://localhost:3001/GetNames?name=' + nameValue + '&levels=' + treeLevels)
+          .then((response) => response.json())
+          .then((data) => ({
+            data: data
+          }))
+          .catch(() => { throw new Error('Data Loading Error'); });
+      }
+    });
+    this.dataGridStore.load();
+    this.hidePopup();
+    
+  };
+  
+  onRefreshClick() {
+    window.location.reload();
+  }
+
+
+  wikitreeHtmlRenderer(data) {
+    const hrefStr = 'https://www.wikitree.com/wiki/' + data.value
+    return <a href={hrefStr} target='_blank'>{data.value}</a>
+  }
+
+  onStateResetClick() {
+    this.dataGrid.current.instance.state(null);
+  }
   onAutoExpandAllChanged() {
     this.setState({
       autoExpandAll: !this.state.autoExpandAll,

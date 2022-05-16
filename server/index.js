@@ -15,8 +15,16 @@ app.get("/api", (req, res) => {
 
 
 app.get("/GetNames", (req, res) => {
-
-    var url = "https://api.wikitree.com/api.php?action=getAncestors&key=Kiel-273"
+    
+    const id = req.query.name;
+    if (id == ' '){
+        res.status(200).send([]); 
+        return;
+    } 
+    console.log(id);
+    //var url = "https://api.wikitree.com/api.php?action=getAncestors&key=Thomas-50033&depth=10"
+    var url = "https://api.wikitree.com/api.php?action=getAncestors&key=" + req.query.name + "&depth=" + req.query.levels
+    //var url = "https://api.wikitree.com/api.php?action=getAncestors&key=Kiel-273"
     
     fetch(url, { // fake API endpoint
         method: 'GET',
