@@ -4,15 +4,21 @@ import './App.css';
 import React from 'react';
 import CustomStore from 'devextreme/data/custom_store';
 import Button from 'devextreme-react/button'
+import Toolbar, { Item } from 'devextreme-react/toolbar';
 import { Slider, Label, Tooltip } from 'devextreme-react/slider';
 import { Popup, Position } from 'devextreme-react/popup';
+import { Workbook } from 'exceljs';
+import { saveAs } from 'file-saver-es';
+import { exportDataGrid } from 'devextreme/excel_exporter';
 import { TextBox  } from 'devextreme-react/text-box';
 import DataGrid, { 
   Column, 
   ColumnChooser,
   ColumnFixing,
   Grouping,
+  Export,
   GroupPanel,
+  LoadPanel,
   Paging,
   SearchPanel,
   Summary, 
@@ -60,15 +66,12 @@ class App extends React.Component {
     this.showPopup = this.showPopup.bind(this);
     this.hidePopup = this.hidePopup.bind(this);
     this.setSliderValue = this.setSliderValue.bind(this);
+    this.onExporting = this.onExporting.bind(this);
   }
 
   render() {
     return (
-      <div id="container">
-        <Button icon="preferences"
-          type="default"
-          text="Done"
-          onClick={this.showPopup} />
+      <div id="container" >
         <Popup
           visible={this.state.popupVisible}
           dragEnabled={false}
@@ -81,21 +84,22 @@ class App extends React.Component {
           container=".dx-viewport"
           width={350}
           height={280} >
-            
         </Popup>
         <DataGrid
           dataSource={this.dataGridStore}
           onContentReady={this.contentReady}
           showBorders={true}
           allowColumnReordering={true}
+          onExporting={this.onExporting}
           allowColumnResizing={true}
           columnAutoWidth={true}
         >
+          <ColumnChooser enabled={true} />
+          <LoadPanel enabled={true} />
           <GroupPanel visible={true} />
           <SearchPanel visible={true} />
           <Grouping autoExpandAll={this.state.autoExpandAll} />
           <Paging defaultPageSize={100} />
-          <ColumnChooser enabled={true} />
           <ColumnFixing enabled={true} />
           <Column 
             dataField="Id"
@@ -130,44 +134,57 @@ class App extends React.Component {
             dataField="BirthLocation" />
           <Column
             dataField="DeathLocation" />
-
+          <Column
+            dataField="Gender" />
           <Summary>
+            <GroupItem
+              column="FirstName"
+              summaryType="count"
+              displayFormat="Total: {0}"
+              />
+            <GroupItem
+              column="MiddleName"
+              summaryType="count"
+              displayFormat="Total: {0}"
+              showInGroupFooter={true} />
               <GroupItem
-                column="FirstName"
-                summaryType="count"
-                displayFormat="Total: {0}"
-                />
-              <GroupItem
-                column="MiddleName"
+                column="LastNameAtBirth"
                 summaryType="count"
                 displayFormat="Total: {0}"
                 showInGroupFooter={true} />
-                <GroupItem
-                  column="LastNameAtBirth"
-                  summaryType="count"
-                  displayFormat="Total: {0}"
-                  showInGroupFooter={true} />
-                <GroupItem
-                  column="LastNameCurrent"
-                  summaryType="count"
-                  displayFormat="Total: {0}"
-                  showInGroupFooter={true} />
-            </Summary>
-            <SortByGroupSummaryInfo summaryItem="count" sortOrder="desc"/>
-        </DataGrid> 
-      </div>
+              <GroupItem
+                column="LastNameCurrent"
+                summaryType="count"
+                displayFormat="Total: {0}"
+                showInGroupFooter={true} />
+          </Summary>
+          <SortByGroupSummaryInfo summaryItem="count" sortOrder="desc"/>
+          <Export enabled={true} allowExportSelectedData={true} />
+        </DataGrid>
+      </div> 
     );
+  }
+
+  onExporting(e) {
+    const workbook = new Workbook();
+    const worksheet = workbook.addWorksheet('Main sheet');
+
+    exportDataGrid({
+      component: e.component,
+      worksheet,
+      autoFilterEnabled: true,
+    }).then(() => {
+      workbook.xlsx.writeBuffer().then((buffer) => {
+        saveAs(new Blob([buffer], { type: 'application/octet-stream' }), 'WikitreeNames.xlsx');
+      });
+    });
+    e.cancel = true;
   }
 
   handleTextBoxChange(newValue){
     this.setState({
       textBoxValue: newValue
-    });
-    // const eventValue = e;
-    // const anotherTarget = e.target;
-    // const eventTarget = eventValue.currentTarget;
-    // const newValue = eventTarget.value;
-    // this.wikitreeID = newValue;
+    })
   };
 
   popupTemplate = (button) => {
@@ -201,13 +218,13 @@ class App extends React.Component {
     ); 
   };
 
-  showPopup() {
+  showPopup(){
     this.setState({
       popupVisible: true
     });
   }
 
-  hidePopup() {
+  hidePopup(){
       this.setState({
         popupVisible: false
       });
@@ -236,7 +253,7 @@ class App extends React.Component {
           .then((data) => ({
             data: data
           }))
-          .catch(() => { throw new Error('Data Loading Error'); });
+          //.catch(() => { throw new Error('Data Loading Error'); });
       }
     });
     this.dataGridStore.load();

@@ -40,10 +40,14 @@ app.get("/GetNames", (req, res) => {
             res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
             res.setHeader('Access-Control-Allow-Credentials', true);
             
-            response = response[0].ancestors;
-            var rRes = JSON.stringify(response, null, 2)
-            console.log(rRes)
-            res.status(200).send(rRes);
+            if (response[0].status == "Illegal WikiTree ID"){
+                res.status(200).send(JSON.stringify([]));
+            } else {
+                response = response[0].ancestors;
+                var rRes = JSON.stringify(response, null, 2)
+                console.log(rRes)
+                res.status(200).send(rRes);
+            }
         })
         .then(data => console.log(data))
         .catch(err => {
